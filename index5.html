@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Attendance Portal</title>
+    
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        html.dark ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .toast-enter { opacity: 0; transform: translateY(100%); }
+        .toast-enter-active { opacity: 1; transform: translateY(0); transition: all 300ms; }
+        .toast-exit { opacity: 1; transform: translateY(0); }
+        .toast-exit-active { opacity: 0; transform: translateY(100%); transition: all 300ms; }
+
+        .gradient-text {
+            background-image: linear-gradient(to right, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        html.dark .dark-gradient-text {
+             background-image: linear-gradient(to right, #818cf8, #c084fc);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        html.light .glass-card {
+             background: rgba(255, 255, 255, 0.6);
+             -webkit-backdrop-filter: blur(10px);
+             backdrop-filter: blur(10px);
+             border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body class="antialiased bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { createRoot } = ReactDOM;
+        const { useState, useEffect, useRef, createContext, useContext, useReducer } = React;
+        const e = React.createElement;
+
+        // --- SIMULATED CONTEXT: Tuesday, September 23, 2025 ---
+
+        // --- MOCK DATABASE ---
+        const DB = {
+            students: [
+                { id: 'S001', name: 'Aarav Sharma', rollNo: 'CSE-01', course: 'Computer Science', email: 'aarav.sharma@example.com', password: 'password', branch: 'Computer Science AI - 3rd Year', mobile: '9876543210', attendance: [
+                    { subjectId: 'CS101', attended: 28, total: 30 },
+                    { subjectId: 'MA101', attended: 22, total: 25 },
+                    { subjectId: 'PH101', attended: 15, total: 25 },
+                ]},
+                 { id: 'S002', name: 'Diya Patel', rollNo: 'CSE-02', course: 'Computer Science', email: 'diya.patel@example.com', password: 'password', branch: 'Computer Science - 2nd Year', mobile: '9876543211', attendance: [
+                    { subjectId: 'CS101', attended: 29, total: 30 },
+                    { subjectId: 'MA101', attended: 24, total: 25 },
+                    { subjectId: 'PH101', attended: 22, total: 25 },
+                ]},
+            ],
+            teachers: [
+                { id: 'T01', name: 'Dr. Ramesh Kumar', employeeId: 'EMP-101', email: 'ramesh.kumar@example.com', password: 'password', department: 'Computer Science', mobile: '8765432109', subjects: ['CS101', 'CS202'] },
+                { id: 'T02', name: 'Prof. Sunita Singh', employeeId: 'EMP-102', email: 'sunita.singh@example.com', password: 'password', department: 'Mathematics', mobile: '8765432108', subjects: ['MA101'] },
+                { id: 'T03', name: 'Dr. Priya Sharma', employeeId: 'EMP-103', email: 'priya.sharma@example.com', password: 'password', department: 'Physics', mobile: '8765432107', subjects: ['PH101'] },
+            ],
+            admins: [
+                { id: 'A01', name: 'Mr. Raj Malhotra', email: 'admin@example.com', password: 'password' },
+            ],
+            subjects: [
+                { id: 'CS101', name: 'Intro to Programming', course: 'Computer Science' },
+                { id: 'MA101', name: 'Calculus I', course: 'Computer Science' },
+                { id: 'PH101', name: 'Physics for Engineers', course: 'Computer Science' },
+                { id: 'CS202', name: 'Data Structures', course: 'Computer Science' },
+            ],
+            classes: [
+                { id: 'C03', subjectId: 'PH101', teacherId: 'T03', time: '10:00 AM', date: '2025-09-23' },
+                { id: 'C04', subjectId: 'CS202', teacherId: 'T01', time: '01:00 PM', date: '2025-09-23' },
+            ],
+            timetable: [
+                { day: 'Monday', time: '09:00 - 10:00', subjectId: 'CS101', teacherId: 'T01', course: 'Computer Science' }, { day: 'Monday', time: '11:00 - 12:00', subjectId: 'MA101', teacherId: 'T02', course: 'Computer Science' },
+                { day: 'Tuesday', time: '10:00 - 11:00', subjectId: 'PH101', teacherId: 'T03', course: 'Computer Science' }, { day: 'Tuesday', time: '13:00 - 14:00', subjectId: 'CS202', teacherId: 'T01', course: 'Computer Science' },
+                { day: 'Wednesday', time: '09:00 - 10:00', subjectId: 'CS101', teacherId: 'T01', course: 'Computer Science' }, { day: 'Wednesday', time: '11:00 - 12:00', subjectId: 'MA101', teacherId: 'T02', course: 'Computer Science' },
+                { day: 'Thursday', time: '10:00 - 11:00', subjectId: 'PH101', teacherId: 'T03', course: 'Computer Science' }, { day: 'Thursday', time: '14:00 - 15:00', subjectId: 'CS202', teacherId: 'T01', course: 'Computer Science' },
+                { day: 'Friday', time: '09:00 - 10:00', subjectId: 'CS101', teacherId: 'T01', course: 'Computer Science' }, { day: 'Friday', time: '13:00 - 14:00', subjectId: 'MA101', teacherId: 'T02', course: 'Computer Science' },
+            ],
+            leaves: [
+                { id: 'L001', studentId: 'S001', studentName: 'Aarav Sharma', reason: 'Medical emergency - high fever and severe cold.', startDate: '2025-09-24', endDate: '2025-09-25', status: 'Pending' },
+                { id: 'L002', studentId: 'S002', studentName: 'Diya Patel', reason: 'Attending a family wedding out of town.', startDate: '2025-09-26', endDate: '2025-09-26', status: 'Approved' },
+                { id: 'L003', studentId: 'S001', studentName: 'Aarav Sharma', reason: 'Personal reasons.', startDate: '2025-09-22', endDate: '2025-09-22', status: 'Rejected' },
+            ]
+        };
+
+        const dataReducer = (state, action) => {
+            switch(action.type) {
+                case 'ADD_LEAVE':
+                    return { ...state, leaves: [...state.leaves, {id: `L${Date.now()}`, status: 'Pending', ...action.payload}] };
+                case 'UPDATE_LEAVE_STATUS':
+                    return { ...state, leaves: state.leaves.map(l => l.id === action.payload.leaveId ? {...l, status: action.payload.status} : l) };
+                case 'ADD_STUDENT':
+                    return { ...state, students: [...state.students, action.payload] };
+                case 'UPDATE_STUDENT':
+                    return { ...state, students: state.students.map(s => s.id === action.payload.id ? action.payload : s) };
+                case 'DELETE_STUDENT':
+                    return { ...state, students: state.students.filter(s => s.id !== action.payload.id) };
+                case 'ADD_TEACHER':
+                    return { ...state, teachers: [...state.teachers, action.payload] };
+                case 'UPDATE_TEACHER':
+                    return { ...state, teachers: state.teachers.map(t => t.id === action.payload.id ? action.payload : t) };
+                case 'DELETE_TEACHER':
+                    return { ...state, teachers: state.teachers.filter(t => t.id !== action.payload.id) };
+                default:
+                    return state;
+            }
+        };
+
+        // --- CONTEXT for AUTH, DATA & THEME ---
+        const AppContext = createContext();
+
+        const AppProvider = ({ children }) => {
+            const [user, setUser] = useState(null);
+            const [theme, setTheme] = useState('light');
+            const [data, dispatch] = useReducer(dataReducer, DB);
+
+            useEffect(() => {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }, [theme]);
+
+            const toggleTheme = () => {
+                setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+            };
+
+            const login = (role) => {
+                let userData;
+                if (role === 'admin') userData = data.admins[0];
+                if (role === 'teacher') userData = data.teachers[0];
+                if (role === 'student') userData = data.students[0];
+                setUser({ role, ...userData });
+            };
+
+            const logout = () => setUser(null);
+
+            const value = { user, login, logout, data, dispatch, theme, toggleTheme };
+            return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+        };
+
+        // --- REUSABLE COMPONENTS ---
+        const Icon = ({ name, className, size = 24 }) => {
+            const iconMap = {
+                UserCircle: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="10" r="3" /><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" /></svg> ),
+                ClipboardCheck: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg> ),
+                Calendar: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg> ),
+                FileText: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> ),
+                History: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> ),
+                X: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> ),
+                LogOut: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> ),
+                LayoutDashboard: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg> ),
+                Users: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ),
+                UserCog: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="19" cy="11" r="2"/><path d="M19 8v1"/><path d="M19 13v1"/><path d="m21.6 9.5-.87.5"/><path d="m17.27 12-.87.5"/><path d="m21.6 12.5-.87-.5"/><path d="m17.27 10-.87-.5"/></svg> ),
+                CheckCircle: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> ),
+                AlertTriangle: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ),
+                Edit: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> ),
+                Trash2: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg> ),
+                Plus: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> ),
+                ArrowLeft: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg> ),
+                Sun: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg> ),
+                Moon: (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> ),
+            };
+            const SvgIcon = iconMap[name];
+            if (!SvgIcon) { console.warn(`Icon '${name}' not found.`); return null; }
+            return <SvgIcon width={size} height={size} className={`inline-block ${className || ''}`} />;
+        };
+
+        const BarChart = ({ data, labels }) => {
+            const chartRef = useRef(null);
+            const { theme } = useContext(AppContext);
+            useEffect(() => {
+                const ctx = chartRef.current.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Attendance %',
+                            data: data,
+                            backgroundColor: data.map(p => p < 75 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)'),
+                            borderColor: data.map(p => p < 75 ? '#ef4444' : '#3b82f6'),
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: theme === 'dark' ? '#334155' : '#e2e8f0' }, ticks: { color: theme === 'dark' ? '#94a3b8' : '#475569' } },
+                            y: { grid: { color: theme === 'dark' ? '#334155' : '#e2e8f0' }, ticks: { color: theme === 'dark' ? '#94a3b8' : '#475569', callback: (v) => v + '%' }, beginAtZero: true, max: 100 }
+                        }
+                    }
+                });
+                return () => chart.destroy();
+            }, [data, labels, theme]);
+            return <div className="h-full"><canvas ref={chartRef}></canvas></div>;
+        };
+        
+        const Toast = ({ message, type = 'success', isVisible, onDismiss }) => {
+            useEffect(() => {
+                if(isVisible) {
+                    const timer = setTimeout(() => { onDismiss(); }, 3000);
+                    return () => clearTimeout(timer);
+                }
+            }, [isVisible, onDismiss]);
+
+            if(!isVisible) return null;
+            
+            const styles = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-sky-500'
+            };
+            
+            return (
+                 <div className={`toast-enter-active fixed bottom-5 right-5 text-white py-3 px-6 rounded-lg shadow-lg flex items-center z-50 ${styles[type]}`}>
+                    <Icon name={type === 'success' ? 'CheckCircle' : 'AlertTriangle'} className="mr-3" />
+                    <span>{message}</span>
+                </div>
+            );
+        };
+        
+        const Modal = ({ isVisible, onClose, title, children }) => {
+            if (!isVisible) return null;
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
+                    <div className="bg-slate-200 dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md border border-slate-300 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-4 border-b border-slate-300 dark:border-slate-700">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{title}</h3>
+                            <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-1 rounded-full"><Icon name="X" size={20} /></button>
+                        </div>
+                        <div className="p-6">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const ProfileCard = ({ user }) => {
+            const isStudent = user.role === 'student';
+            const imageUrl = `https://placehold.co/100x100/6366f1/white?text=${user.name.charAt(0)}`;
+            return (
+                <div className="glass-card p-6 rounded-xl space-y-6">
+                    <div className="text-center"><img src={imageUrl} alt="Profile" className="w-24 h-24 rounded-full mx-auto ring-4 ring-white/20" /></div>
+                    <div>
+                        <div className="flex items-center text-slate-600 dark:text-slate-300 mb-2">
+                           <Icon name="UserCircle" size={18} className="mr-2" />
+                           <h3 className="font-semibold">{isStudent ? 'Student Info' : user.role === 'teacher' ? 'Teacher Info' : 'Admin Info'}</h3>
+                        </div>
+                        <div className="text-sm space-y-2 text-slate-600 dark:text-slate-400">
+                           <p><strong className="font-medium text-slate-700 dark:text-slate-200">Name:</strong> {user.name}</p>
+                           { user.role !== 'admin' && <p><strong className="font-medium text-slate-700 dark:text-slate-200">{isStudent ? 'ID:' : 'Employee ID:'}</strong> {isStudent ? user.rollNo : user.employeeId}</p> }
+                           { user.role !== 'admin' && <p><strong className="font-medium text-slate-700 dark:text-slate-200">{isStudent ? 'Branch:' : 'Department:'}</strong> {isStudent ? user.branch : user.department}</p> }
+                           { user.mobile && <p><strong className="font-medium text-slate-700 dark:text-slate-200">Mobile:</strong> {user.mobile}</p> }
+                           <p><strong className="font-medium text-slate-700 dark:text-slate-200">Email:</strong> {user.email}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APPLICATION LAYOUT ---
+        const App = () => {
+            const { user } = useContext(AppContext);
+            return user ? <DashboardLayout /> : <LoginPage />;
+        };
+
+        const LoginPage = () => {
+            const { login } = useContext(AppContext);
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900 p-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                    <div className="w-full max-w-md mx-auto fade-in">
+                        <div className="text-center mb-8">
+                           <Icon name="ClipboardCheck" size={48} className="mx-auto text-indigo-500" />
+                           <h1 className="text-4xl font-bold mt-4 gradient-text dark-gradient-text">Student Attendance Portal</h1>
+                           <p className="text-slate-600 dark:text-slate-400 mt-2">Sign in to access your dashboard.</p>
+                        </div>
+                        <div className="glass-card p-8 rounded-2xl shadow-lg">
+                           <form className="space-y-6">
+                                <div>
+                                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-2">Email Address</label>
+                                    <input type="email" defaultValue="user@example.com" className="w-full bg-slate-200/50 dark:bg-slate-900/50 border border-slate-300/50 dark:border-slate-600/50 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-2">Password</label>
+                                    <input type="password" defaultValue="password" className="w-full bg-slate-200/50 dark:bg-slate-900/50 border border-slate-300/50 dark:border-slate-600/50 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                                </div>
+                           </form>
+                            <div className="mt-8 space-y-3">
+                                <button onClick={() => login('admin')} className="w-full bg-indigo-600 text-white font-semibold py-2 rounded-lg hover:bg-indigo-700 transition-transform hover:scale-105">Login as Admin</button>
+                                <button onClick={() => login('teacher')} className="w-full bg-sky-600 text-white font-semibold py-2 rounded-lg hover:bg-sky-700 transition-transform hover:scale-105">Login as Teacher</button>
+                                <button onClick={() => login('student')} className="w-full bg-emerald-600 text-white font-semibold py-2 rounded-lg hover:bg-emerald-700 transition-transform hover:scale-105">Login as Student</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const DashboardLayout = () => {
+            const [page, setPage] = useState('dashboard');
+            const { user } = useContext(AppContext);
+            
+            const renderPage = () => {
+                switch(user.role) {
+                    case 'student':
+                        if (page === 'dashboard') return <StudentDashboard setPage={setPage}/>;
+                        if (page.startsWith('subject/')) return <StudentSubjectDetail subjectId={page.split('/')[1]} setPage={setPage} />;
+                        if (page === 'timetable') return <TimetablePage />;
+                        if (page === 'apply-leave') return <ApplyLeavePage setPage={setPage} />;
+                        if (page === 'leave-history') return <LeaveHistoryPage />;
+                        if (page === 'profile') return <ProfilePage />;
+                        return <StudentDashboard setPage={setPage}/>;
+                    case 'teacher':
+                        if (page === 'dashboard') return <TeacherDashboard setPage={setPage} />;
+                        if (page.startsWith('mark-attendance/')) return <MarkAttendancePage classId={page.split('/')[1]} setPage={setPage}/>;
+                        if (page === 'timetable') return <TimetablePage />;
+                        if (page === 'leave-requests') return <LeaveRequestsPage setPage={setPage} />;
+                        if (page === 'profile') return <ProfilePage />;
+                        return <TeacherDashboard setPage={setPage} />;
+                    case 'admin':
+                         switch(page) {
+                             case 'dashboard': return <AdminDashboard />;
+                             case 'students': return <ManageStudentsPage />;
+                             case 'teachers': return <ManageTeachersPage />;
+                             case 'leave-requests': return <LeaveRequestsPage setPage={setPage} />;
+                             case 'profile': return <ProfilePage />;
+                             default: return <AdminDashboard />;
+                         }
+                    default: return <div>Error: Unknown role.</div>;
+                }
+            };
+
+            return (
+                <div className="flex h-screen bg-slate-100 dark:bg-slate-900">
+                    <Sidebar currentPage={page} setPage={setPage}/>
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <Header />
+                        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 lg:p-8">
+                            {renderPage()}
+                        </main>
+                    </div>
+                </div>
+            )
+        };
+        
+        const Sidebar = ({ currentPage, setPage }) => {
+            const { user } = useContext(AppContext);
+
+            const studentNav = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' }, { id: 'timetable', label: 'Timetable', icon: 'Calendar' },
+                { id: 'apply-leave', label: 'Apply for Leave', icon: 'FileText' }, { id: 'leave-history', label: 'Leave History', icon: 'History' },
+                { id: 'profile', label: 'Profile', icon: 'UserCircle' }
+            ];
+            const teacherNav = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' }, { id: 'timetable', label: 'Timetable', icon: 'Calendar' },
+                { id: 'leave-requests', label: 'Leave Requests', icon: 'FileText' }, { id: 'profile', label: 'Profile', icon: 'UserCircle' }
+            ];
+            const adminNav = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' }, { id: 'students', label: 'Manage Students', icon: 'Users' },
+                { id: 'teachers', label: 'Manage Teachers', icon: 'UserCog' }, { id: 'leave-requests', label: 'Leave Requests', icon: 'FileText' },
+                { id: 'profile', label: 'Profile', icon: 'UserCircle' }
+            ];
+
+            const navItems = { student: studentNav, teacher: teacherNav, admin: adminNav }[user.role];
+
+            return (
+                <aside className="w-64 bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm border-r border-slate-200 dark:border-slate-700 flex flex-col">
+                    <div className="flex items-center justify-center p-4 h-16 border-b border-slate-200 dark:border-slate-700">
+                        <Icon name="ClipboardCheck" size={28} className="text-indigo-500" />
+                        <h1 className="ml-3 text-xl font-bold text-slate-800 dark:text-white">Portal</h1>
+                    </div>
+                    <nav className="mt-4 flex-1">
+                        {navItems.map(item => (
+                            <a key={item.id} href="#" onClick={(e) => { e.preventDefault(); setPage(item.id); }}
+                                className={`flex items-center px-4 py-2 mx-4 my-1 rounded-md text-sm font-medium transition-colors ${currentPage.startsWith(item.id) ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                                <Icon name={item.icon} size={18} className="mr-3" />
+                                <span>{item.label}</span>
+                            </a>
+                        ))}
+                    </nav>
+                </aside>
+            );
+        };
+        
+        const Header = () => {
+            const { user, logout, theme, toggleTheme } = useContext(AppContext);
+            return (
+                <header className="flex items-center justify-between p-4 bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 h-16">
+                    <div></div>
+                    <div className="flex items-center">
+                         <button onClick={toggleTheme} className="mr-4 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+                            {theme === 'dark' ? <Icon name="Sun" size={20} /> : <Icon name="Moon" size={20} />}
+                        </button>
+                        <div className="text-right">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white">{user.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
+                        </div>
+                        <button onClick={logout} className="ml-4 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><Icon name="LogOut" size={20} /></button>
+                    </div>
+                </header>
+            );
+        };
+
+        // --- SHARED COMPONENTS ---
+        const ProfilePage = () => {
+            const { user } = useContext(AppContext);
+            const [toast, setToast] = useState({ isVisible: false, message: '' });
+
+            return (
+                <div className="fade-in max-w-2xl mx-auto">
+                    <Toast isVisible={toast.isVisible} message={toast.message} onDismiss={() => setToast({isVisible: false, message: ''})} />
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-6">Your Profile</h2>
+                    <ProfileCard user={user} />
+                    <div className="mt-6 glass-card p-6 rounded-xl">
+                        <h3 className="font-semibold mb-4">Account Actions</h3>
+                        <div className="flex space-x-4">
+                            <button className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm" onClick={() => setToast({isVisible: true, message: 'Edit profile feature coming soon!'})}>Edit Profile</button>
+                            <button className="bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition-colors text-sm" onClick={() => setToast({isVisible: true, message: 'Password reset feature coming soon!'})}>Change Password</button>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        const TimetablePage = () => {
+            const { user, data } = useContext(AppContext);
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            const timeSlots = ['09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '13:00 - 14:00', '14:00 - 15:00'];
+            const userTimetable = data.timetable.filter(slot => user.role === 'student' ? slot.course === user.course : user.role === 'teacher' ? slot.teacherId === user.id : false);
+            const getSubjectName = (subjectId) => data.subjects.find(s => s.id === subjectId)?.name || 'N/A';
+            const today = new Date('2025-09-23').toLocaleDateString('en-US', { weekday: 'long' });
+            return (
+                <div className="fade-in glass-card p-6 rounded-xl">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Weekly Timetable</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-slate-200/50 dark:bg-slate-700/50">
+                                    <th className="p-3 font-semibold text-left border border-slate-300 dark:border-slate-600">Time</th>
+                                    {days.map(day => <th key={day} className={`p-3 font-semibold border border-slate-300 dark:border-slate-600 ${day === today ? 'bg-indigo-200 dark:bg-indigo-900/50' : ''}`}>{day}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {timeSlots.map(time => (
+                                    <tr key={time} className="text-center">
+                                        <td className="p-3 font-medium text-left border border-slate-200 dark:border-slate-700">{time}</td>
+                                        {days.map(day => {
+                                            const slot = userTimetable.find(s => s.day === day && s.time === time);
+                                            return <td key={`${day}-${time}`} className={`p-3 border border-slate-200 dark:border-slate-700 ${day === today ? 'bg-slate-200/30 dark:bg-slate-800/30' : ''}`}>
+                                                    {slot ? <div className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 rounded-md p-2 text-sm font-medium">{getSubjectName(slot.subjectId)}</div> : ''}
+                                                </td>;
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const LeaveRequestsPage = () => {
+            const { data, dispatch } = useContext(AppContext);
+            const handleUpdateStatus = (leaveId, status) => dispatch({ type: 'UPDATE_LEAVE_STATUS', payload: { leaveId, status } });
+            const getStatusColor = (status) => ({ 'Approved': 'bg-green-500/20 text-green-400', 'Rejected': 'bg-red-500/20 text-red-400', 'Pending': 'bg-yellow-500/20 text-yellow-400' }[status] || 'bg-slate-500/20 text-slate-400');
+            return (
+                <div className="fade-in glass-card p-6 rounded-xl">
+                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Leave Requests</h2>
+                     <div className="overflow-x-auto">
+                         <table className="w-full text-left">
+                              <thead>
+                                 <tr className="border-b border-slate-300 dark:border-slate-600">
+                                     <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Student Name</th> <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Dates</th>
+                                     <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Reason</th> <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                                     <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Actions</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 {data.leaves.map(leave => (
+                                     <tr key={leave.id} className="border-b border-slate-200 dark:border-slate-700">
+                                         <td className="p-3 text-slate-800 dark:text-white font-medium">{leave.studentName}</td>
+                                         <td className="p-3 text-slate-500 dark:text-slate-400 text-sm">{leave.startDate} to {leave.endDate}</td>
+                                         <td className="p-3 text-slate-500 dark:text-slate-400 text-sm">{leave.reason}</td>
+                                         <td className="p-3"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(leave.status)}`}>{leave.status}</span></td>
+                                         <td className="p-3">{leave.status === 'Pending' && <div className="flex space-x-2"><button onClick={() => handleUpdateStatus(leave.id, 'Approved')} className="bg-green-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-green-700 text-xs">Approve</button><button onClick={() => handleUpdateStatus(leave.id, 'Rejected')} className="bg-red-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-red-700 text-xs">Reject</button></div>}</td>
+                                     </tr>
+                                 ))}
+                              </tbody>
+                         </table>
+                     </div>
+                </div>
+            );
+        };
+
+        // --- STUDENT VIEW COMPONENTS ---
+        const StudentDashboard = ({ setPage }) => {
+            const { user, data } = useContext(AppContext);
+            const attendanceData = user.attendance.map(att => ({ ...att, subjectName: data.subjects.find(s => s.id === att.subjectId).name, percentage: Math.round((att.attended / att.total) * 100) }));
+            const overallPercentage = Math.round(attendanceData.reduce((acc, curr) => acc + curr.attended, 0) / attendanceData.reduce((acc, curr) => acc + curr.total, 0) * 100);
+            return (
+                <div className="fade-in space-y-6">
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Welcome, <span className="gradient-text dark-gradient-text">{user.name}</span> 👋</h2>
+                    { overallPercentage < 75 && 
+                        <div className="bg-red-500/20 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-r-lg" role="alert">
+                            <p className="font-bold flex items-center"><Icon name="AlertTriangle" size={20} className="mr-2"/>Low Attendance Warning</p>
+                            <p>Your overall attendance is {overallPercentage}%. Please attend classes regularly to avoid consequences.</p>
+                        </div>
+                    }
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1"><ProfileCard user={user} /></div>
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="glass-card p-6 rounded-xl flex flex-col justify-center items-center">
+                                <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300">Overall Attendance</h3>
+                                <p className={`text-6xl font-extrabold mt-2 ${overallPercentage < 75 ? 'text-red-500' : 'text-green-400'}`}>{overallPercentage}%</p>
+                            </div>
+                            <div className="glass-card p-6 rounded-xl h-64"><BarChart data={attendanceData.map(d => d.percentage)} labels={attendanceData.map(d => d.subjectName)} /></div>
+                        </div>
+                    </div>
+                    <div className="glass-card p-6 rounded-xl">
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Subject-wise Attendance</h3>
+                        <div className="space-y-3">
+                            {attendanceData.map(d => (
+                                <div key={d.subjectId} onClick={() => setPage(`subject/${d.subjectId}`)} className="bg-slate-200/50 dark:bg-slate-700/50 p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-300/50 dark:hover:bg-slate-700 transition-colors">
+                                    <div>
+                                        <p className="font-semibold text-slate-800 dark:text-white">{d.subjectName}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">{d.attended} / {d.total} classes attended</p>
+                                    </div>
+                                    <div className={`px-3 py-1 text-sm font-bold rounded-full ${d.percentage < 75 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>{d.percentage}%</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const StudentSubjectDetail = ({ subjectId, setPage }) => {
+            const { data } = useContext(AppContext);
+            const subject = data.subjects.find(s => s.id === subjectId);
+            const detailedAttendance = Array.from({length: 22}, (_, i) => ({ date: `2025-09-${String(i+1).padStart(2, '0')}`, status: Math.random() > 0.15 ? 'Present' : 'Absent' })).reverse();
+            return (
+                <div className="fade-in glass-card p-6 rounded-xl">
+                    <div className="flex items-center mb-4">
+                         <button onClick={() => setPage('dashboard')} className="mr-4 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 rounded-full transition-colors"><Icon name="ArrowLeft" size={20} /></button>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Attendance for: {subject.name}</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead><tr className="border-b border-slate-300 dark:border-slate-600"><th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Date</th><th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Status</th></tr></thead>
+                            <tbody>
+                                {detailedAttendance.map((att, index) => (
+                                    <tr key={index} className="border-b border-slate-200 dark:border-slate-700">
+                                        <td className="p-3 text-slate-600 dark:text-slate-400">{att.date}</td>
+                                        <td className="p-3"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${att.status === 'Present' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{att.status}</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const ApplyLeavePage = ({ setPage }) => {
+            const { user, dispatch } = useContext(AppContext);
+            const [isToastVisible, setIsToastVisible] = useState(false);
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                dispatch({ type: 'ADD_LEAVE', payload: { studentId: user.id, studentName: user.name, reason: formData.get('reason'), startDate: formData.get('startDate'), endDate: formData.get('endDate') } });
+                setIsToastVisible(true);
+                e.target.reset();
+            };
+            return (
+                <div className="fade-in glass-card p-6 rounded-xl">
+                    <Toast message="Leave application submitted." isVisible={isToastVisible} onDismiss={() => setIsToastVisible(false)} />
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Apply for Leave</h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-2">Reason for Leave</label>
+                            <textarea name="reason" rows="4" required className="w-full bg-slate-200/50 dark:bg-slate-700/50 border border-slate-300/50 dark:border-slate-600/50 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-2">Start Date</label>
+                                <input type="date" name="startDate" required className="w-full bg-slate-200/50 dark:bg-slate-700/50 border border-slate-300/50 dark:border-slate-600/50 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-2">End Date</label>
+                                <input type="date" name="endDate" required className="w-full bg-slate-200/50 dark:bg-slate-700/50 border border-slate-300/50 dark:border-slate-600/50 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                            </div>
+                        </div>
+                        <div className="flex justify-end pt-4"><button type="submit" className="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors">Submit Application</button></div>
+                    </form>
+                </div>
+            );
+        };
+        
+        const LeaveHistoryPage = () => {
+            const { user, data } = useContext(AppContext);
+            const myLeaves = data.leaves.filter(l => l.studentId === user.id);
+            const getStatusColor = (status) => ({ 'Approved': 'bg-green-500/20 text-green-400', 'Rejected': 'bg-red-500/20 text-red-400', 'Pending': 'bg-yellow-500/20 text-yellow-400' }[status] || 'bg-slate-500/20 text-slate-400');
+            return (
+                 <div className="fade-in glass-card p-6 rounded-xl">
+                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Your Leave History</h2>
+                     <div className="overflow-x-auto">
+                         <table className="w-full text-left">
+                              <thead><tr className="border-b border-slate-300 dark:border-slate-600"><th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Dates</th><th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Reason</th><th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Status</th></tr></thead>
+                              <tbody>
+                                 {myLeaves.length > 0 ? myLeaves.map(leave => (
+                                     <tr key={leave.id} className="border-b border-slate-200 dark:border-slate-700">
+                                         <td className="p-3 text-slate-500 dark:text-slate-400 text-sm">{leave.startDate} to {leave.endDate}</td>
+                                         <td className="p-3 text-slate-500 dark:text-slate-400 text-sm">{leave.reason}</td>
+                                         <td className="p-3"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(leave.status)}`}>{leave.status}</span></td>
+                                     </tr>
+                                 )) : <tr><td colSpan="3" className="p-3 text-center text-slate-500">You have not applied for any leave.</td></tr>}
+                              </tbody>
+                         </table>
+                     </div>
+                </div>
+            );
+        };
+
+        // --- TEACHER VIEW COMPONENTS ---
+        const TeacherDashboard = ({ setPage }) => {
+            const { user, data } = useContext(AppContext);
+            const todayClasses = data.classes.filter(c => c.teacherId === user.id && c.date === '2025-09-23').map(c => ({ ...c, subjectName: data.subjects.find(s => s.id === c.subjectId).name, course: data.subjects.find(s => s.id === c.subjectId).course }));
+            return (
+                <div className="fade-in space-y-6">
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Welcome, <span className="gradient-text dark-gradient-text">{user.name}</span></h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-1"><ProfileCard user={user} /></div>
+                        <div className="lg:col-span-2">
+                             <div className="glass-card p-6 rounded-xl h-full">
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Today's Schedule</h3>
+                                {todayClasses.length > 0 ? (
+                                <div className="space-y-3">
+                                    {todayClasses.map(c => (
+                                        <div key={c.id} className="bg-slate-200/50 dark:bg-slate-700/50 p-4 rounded-lg flex justify-between items-center">
+                                            <div>
+                                                <p className="font-semibold text-slate-800 dark:text-white">{c.subjectName}</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">{c.course} - {c.time}</p>
+                                            </div>
+                                            <button onClick={() => setPage(`mark-attendance/${c.id}`)} className="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors text-sm">Mark Attendance</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                ) : (<p className="text-slate-500 dark:text-slate-400">No classes scheduled for today.</p>)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const MarkAttendancePage = ({ classId, setPage }) => {
+            const { data } = useContext(AppContext);
+            const classInfo = data.classes.find(c => c.id === classId);
+            const subjectInfo = data.subjects.find(s => s.id === classInfo.subjectId);
+            const studentsInClass = data.students.filter(s => s.course === subjectInfo.course);
+
+            const [attendance, setAttendance] = useState(() => {
+                const initialState = {};
+                studentsInClass.forEach(s => { initialState[s.id] = 'Present'; });
+                return initialState;
+            });
+            const [isToastVisible, setIsToastVisible] = useState(false);
+
+            const handleStatusChange = (studentId, status) => setAttendance(prev => ({ ...prev, [studentId]: status }));
+            const handleSubmit = () => { console.log("Submitted Attendance:", attendance); setIsToastVisible(true); };
+            
+            const handleBulkMark = (status) => {
+                const newAttendance = {};
+                studentsInClass.forEach(s => { newAttendance[s.id] = status; });
+                setAttendance(newAttendance);
+            };
+
+            return (
+                <div className="fade-in glass-card p-6 rounded-xl">
+                    <Toast message={`Attendance for ${subjectInfo.name} saved.`} isVisible={isToastVisible} onDismiss={() => setIsToastVisible(false)} />
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center">
+                            <button onClick={() => setPage('dashboard')} className="mr-4 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 rounded-full transition-colors"><Icon name="ArrowLeft" size={20} /></button>
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Mark Attendance</h2>
+                                <p className="text-slate-500 dark:text-slate-400">{subjectInfo.name} - {new Date(classInfo.date).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div className="flex space-x-2">
+                            <button onClick={() => handleBulkMark('Present')} className="bg-green-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-green-700 text-xs">All Present</button>
+                            <button onClick={() => handleBulkMark('Absent')} className="bg-red-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-red-700 text-xs">All Absent</button>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                       {studentsInClass.map(student => (
+                           <div key={student.id} className="bg-slate-200/50 dark:bg-slate-700/50 p-3 rounded-lg flex justify-between items-center">
+                               <p className="text-slate-800 dark:text-white font-medium">{student.name} ({student.rollNo})</p>
+                               <div className="flex space-x-2">
+                                   {['Present', 'Absent', 'Leave'].map(status => {
+                                       const isActive = attendance[student.id] === status;
+                                       const colors = { Present: 'bg-green-600 hover:bg-green-700', Absent: 'bg-red-600 hover:bg-red-700', Leave: 'bg-yellow-600 hover:bg-yellow-700' };
+                                       const inactiveColors = 'bg-slate-400/50 dark:bg-slate-600 hover:bg-slate-500/50 dark:hover:bg-slate-500';
+                                       return <button key={status} onClick={() => handleStatusChange(student.id, status)} className={`px-3 py-1 text-xs font-semibold rounded-full text-white transition-colors ${isActive ? colors[status] : inactiveColors}`}>{status}</button>;
+                                   })}
+                               </div>
+                           </div>
+                       ))}
+                    </div>
+                    
+                    <div className="mt-8 flex justify-end"><button onClick={handleSubmit} className="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors">Submit Attendance</button></div>
+                </div>
+            );
+        };
+        
+        // --- ADMIN VIEW COMPONENTS ---
+        const AdminDashboard = () => {
+             const { data } = useContext(AppContext);
+             const totalStudents = data.students.length;
+             const totalTeachers = data.teachers.length;
+             const overallAtt = Math.round(data.students.flatMap(s => s.attendance).reduce((acc, curr) => acc + curr.attended, 0) / data.students.flatMap(s => s.attendance).reduce((acc, curr) => acc + curr.total, 0) * 100);
+            return(
+                <div className="fade-in space-y-6">
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Admin Dashboard</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="glass-card p-6 rounded-xl"><h3 className="text-slate-600 dark:text-slate-400">Total Students</h3><p className="text-4xl font-bold text-slate-800 dark:text-white mt-2">{totalStudents}</p></div>
+                        <div className="glass-card p-6 rounded-xl"><h3 className="text-slate-600 dark:text-slate-400">Total Teachers</h3><p className="text-4xl font-bold text-slate-800 dark:text-white mt-2">{totalTeachers}</p></div>
+                        <div className="glass-card p-6 rounded-xl"><h3 className="text-slate-600 dark:text-slate-400">Overall Attendance</h3><p className="text-4xl font-bold text-green-500 mt-2">{overallAtt}%</p></div>
+                    </div>
+                </div>
+            );
+        }
+        
+        const CrudTable = ({ title, items, columns, onAdd, onEdit, onDelete }) => {
+            return (
+                 <div className="fade-in glass-card p-6 rounded-xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{title}</h2>
+                        <button onClick={onAdd} className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors flex items-center text-sm"><Icon name="Plus" size={16} className="mr-2"/>Add New</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-300 dark:border-slate-600">
+                                    {columns.map(col => <th key={col.key} className="p-3 font-semibold text-slate-600 dark:text-slate-300">{col.header}</th>)}
+                                    <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map(item => (
+                                    <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700">
+                                        {columns.map(col => <td key={`${item.id}-${col.key}`} className="p-3 text-sm text-slate-600 dark:text-slate-400">{item[col.key]}</td>)}
+                                        <td className="p-3">
+                                            <div className="flex space-x-2">
+                                                <button onClick={() => onEdit(item)} className="text-sky-600 hover:text-sky-800 p-1"><Icon name="Edit" size={16}/></button>
+                                                <button onClick={() => onDelete(item)} className="text-red-600 hover:text-red-800 p-1"><Icon name="Trash2" size={16}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+        
+        const ManageStudentsPage = () => {
+            const { data, dispatch } = useContext(AppContext);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingStudent, setEditingStudent] = useState(null);
+
+            const handleAdd = () => { setEditingStudent(null); setIsModalOpen(true); };
+            const handleEdit = (student) => { setEditingStudent(student); setIsModalOpen(true); };
+            const handleDelete = (student) => dispatch({ type: 'DELETE_STUDENT', payload: student });
+            const handleSave = (studentData) => {
+                if (editingStudent) {
+                    dispatch({ type: 'UPDATE_STUDENT', payload: { ...editingStudent, ...studentData } });
+                } else {
+                    dispatch({ type: 'ADD_STUDENT', payload: { ...studentData, id: `S${Date.now()}`, attendance: [] } });
+                }
+                setIsModalOpen(false);
+            };
+
+            const columns = [{key: 'name', header: 'Name'}, {key: 'rollNo', header: 'Roll No'}, {key: 'branch', header: 'Branch'}, {key: 'email', header: 'Email'}];
+            return (
+                <>
+                    <CrudTable title="Manage Students" items={data.students} columns={columns} onAdd={handleAdd} onEdit={handleEdit} onDelete={handleDelete} />
+                    <StudentFormModal isVisible={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} student={editingStudent} />
+                </>
+            );
+        };
+
+        const StudentFormModal = ({ isVisible, onClose, onSave, student }) => {
+            const [formData, setFormData] = useState({});
+            useEffect(() => { setFormData(student || {}); }, [student]);
+            const handleChange = e => setFormData({...formData, [e.target.name]: e.target.value });
+            const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+            const fields = [ {name: 'name', label: 'Full Name'}, {name: 'rollNo', label: 'Roll Number'}, {name: 'branch', label: 'Branch'}, {name: 'email', label: 'Email Address', type: 'email'}, {name: 'mobile', label: 'Mobile Number'} ];
+            return (
+                <Modal isVisible={isVisible} onClose={onClose} title={student ? 'Edit Student' : 'Add New Student'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {fields.map(f => (
+                            <div key={f.name}>
+                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1">{f.label}</label>
+                                <input type={f.type || 'text'} name={f.name} value={formData[f.name] || ''} onChange={handleChange} required className="w-full bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"/>
+                            </div>
+                        ))}
+                        <div className="flex justify-end pt-4"><button type="submit" className="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700">Save</button></div>
+                    </form>
+                </Modal>
+            );
+        };
+        
+        const ManageTeachersPage = () => {
+             const { data, dispatch } = useContext(AppContext);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingTeacher, setEditingTeacher] = useState(null);
+
+            const handleAdd = () => { setEditingTeacher(null); setIsModalOpen(true); };
+            const handleEdit = (teacher) => { setEditingTeacher(teacher); setIsModalOpen(true); };
+            const handleDelete = (teacher) => dispatch({ type: 'DELETE_TEACHER', payload: teacher });
+            const handleSave = (teacherData) => {
+                if (editingTeacher) {
+                    dispatch({ type: 'UPDATE_TEACHER', payload: { ...editingTeacher, ...teacherData } });
+                } else {
+                    dispatch({ type: 'ADD_TEACHER', payload: { ...teacherData, id: `T${Date.now()}`, subjects: [] } });
+                }
+                setIsModalOpen(false);
+            };
+            const columns = [{key: 'name', header: 'Name'}, {key: 'employeeId', header: 'Employee ID'}, {key: 'department', header: 'Department'}, {key: 'email', header: 'Email'}];
+            return (
+                <>
+                    <CrudTable title="Manage Teachers" items={data.teachers} columns={columns} onAdd={handleAdd} onEdit={handleEdit} onDelete={handleDelete} />
+                    <TeacherFormModal isVisible={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} teacher={editingTeacher} />
+                </>
+            );
+        };
+        
+        const TeacherFormModal = ({ isVisible, onClose, onSave, teacher }) => {
+            const [formData, setFormData] = useState({});
+            useEffect(() => { setFormData(teacher || {}); }, [teacher]);
+            const handleChange = e => setFormData({...formData, [e.target.name]: e.target.value });
+            const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+            const fields = [ {name: 'name', label: 'Full Name'}, {name: 'employeeId', label: 'Employee ID'}, {name: 'department', label: 'Department'}, {name: 'email', label: 'Email Address', type: 'email'}, {name: 'mobile', label: 'Mobile Number'} ];
+            return (
+                <Modal isVisible={isVisible} onClose={onClose} title={teacher ? 'Edit Teacher' : 'Add New Teacher'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {fields.map(f => (
+                            <div key={f.name}>
+                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1">{f.label}</label>
+                                <input type={f.type || 'text'} name={f.name} value={formData[f.name] || ''} onChange={handleChange} required className="w-full bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"/>
+                            </div>
+                        ))}
+                        <div className="flex justify-end pt-4"><button type="submit" className="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700">Save</button></div>
+                    </form>
+                </Modal>
+            );
+        };
+        
+        // --- RENDER THE APP ---
+        const container = document.getElementById('root');
+        const root = createRoot(container);
+        root.render(
+            <AppProvider>
+                <App />
+            </AppProvider>
+        );
+
+    </script>
+
+</body>
+</html>
+
